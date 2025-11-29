@@ -9,22 +9,14 @@ on:
 jobs:
   commit-lint:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-
-      - name: Setup Node.js 20.x
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm install @commitlint/cli @commitlint/config-conventional
+          fetch-depth: 0  # Necesario para leer mensajes de commits anteriores
 
       - name: 📝 Validate Commit Messages
         uses: wagoid/commitlint-github-action@v6
         with:
-          configFile: commitlint.config.js
+          configFile: commitlint.config.mjs
