@@ -2,11 +2,9 @@ name: CI Build, Lint, Test, and DB Check
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   pull_request:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
   build-and-test:
@@ -18,59 +16,52 @@ jobs:
         env:
           MYSQL_ROOT_PASSWORD: rootpassword
           MYSQL_DATABASE: testpilotdb
-          MYSQL_USER: user
-          MYSQL_PASSWORD: password
+        ports:
+          - 3308:3306
         options: >-
-          --health-cmd "mysqladmin ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+          --health-cmd="mysqladmin ping -h localhost -prootpassword"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Node.js 20
-        uses: actions/setup-node@v4 
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
         with:
-          node-version: '20'
-      - name: Verificar versión de Node.js
-        run: node -v
-      
-      # Prisma tiene una versión 7 pero no es compatible
-      - name: Generate Prisma Client
-        run: npx prisma@6.19.0 generate
+          node-version: 20
+          cache: npm
 
-      - name: Run Lint (ESLint)
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Lint
         run: npm run lint
 
-      - name: Type Check and Build (TypeScript)
+      - name: Build
         run: npm run build
 
       - name: Set DATABASE_URL
-        run: echo "DATABASE_URL=mysql://user:password@mysql:3306/testpilotdb" >> $GITHUB_ENV
-        
-      - name: 🚀 Validate and Apply Migrations (with Retries)
-        run: |
-          MAX_RETRIES=10
-          RETRY_DELAY=5
-          
-          # Bucle de reintento para el comando de migración
-          for i in $(seq 1 $MAX_RETRIES); do
-            echo "Attempt $i/$MAX_RETRIES: Running Prisma migrate deploy..."
-            
-            # Intentar la migración. Si es exitosa (código 0), salimos del bucle.
-            if npx prisma migrate deploy; then
-              echo "Prisma migration succeeded!"
-              exit 0
-            fi
-            
-            echo "Migration failed (P1001 expected). Waiting $RETRY_DELAY seconds before retry..."
-            sleep $RETRY_DELAY
-          done
-          
-          echo "Error: Database migration failed after $MAX_RETRIES retries."
-          exit 1 # Falla el job si los 10 intentos fallan
+        run: echo "DATABASE_URL=mysql://root:rootpassword@127.0.0.1:3308/testpilotdb" >> $GITHUB_ENV
 
-      - name: Run Tests with Coverage
+      - name: Wait for MySQL to be ready
+        run: |
+          echo "Waiting for MySQL..."
+          for i in {1..30}; do
+            if mysqladmin ping -h 127.0.0.1 -P 3308 -uroot -prootpassword --silent; then
+              echo "MySQL is ready!"
+              break
+            fi
+            sleep 2
+          done
+
+      - name: Apply Migrations
+        run: npx prisma migrate deploy
+
+      - name: Run tests
         run: npm run test:coverage
