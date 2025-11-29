@@ -44,7 +44,7 @@ jobs:
         run: echo "DATABASE_URL=mysql://user:password@mysql:3306/testpilotdb" >> $GITHUB_ENV
 
       - name: Wait for MySQL Service to be fully ready (Fixed Delay)
-        run: sleep 30s
+        run: sleep 60s
         
       - name: Validate Prisma Schema and Apply Migrations
         run: npx prisma migrate deploy
