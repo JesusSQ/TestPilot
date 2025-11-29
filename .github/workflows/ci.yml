@@ -10,9 +10,8 @@ on:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest # Esto es Linux
+    runs-on: ubuntu-latest
 
-    # 1. Configuración del servicio MySQL
     services:
       mysql:
         image: mysql:8.0
@@ -21,7 +20,6 @@ jobs:
           MYSQL_DATABASE: testpilotdb
           MYSQL_USER: user
           MYSQL_PASSWORD: password
-        # Quitamos ports para evitar conflictos de puerto 3306 en el host
         options: >-
           --health-cmd "mysqladmin ping"
           --health-interval 10s
@@ -29,45 +27,32 @@ jobs:
           --health-retries 5
 
     steps:
-      - name: ⚙️ Checkout code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: ⚙️ Setup Node.js 20.x
+      - name: Setup Node.js 20.x
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
 
-      - name: 📦 Install dependencies
+      - name: Install dependencies
         run: npm install
 
-      # --- CONEXIÓN A DB Y MIGRACIONES ---
-
-      - name: ⚙️ Set DATABASE_URL
-        # En Linux/GitHub Actions, el servicio se resuelve automáticamente por su nombre
-        run: echo "DATABASE_URL=mysql://user:password@mysql:3306/testpilotdb" >> $GITHUB_ENV
-
-      - name: ⏳ Wait for MySQL Service to be fully ready (Active Ping)
-        # Instalamos el cliente MySQL (que incluye mysqladmin) en el runner
-        # Luego, esperamos activamente a que el servicio 'mysql' responda
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y mariadb-client
-          # Intentamos la conexión de forma silenciosa cada 1s
-          bash -c 'while ! mysqladmin ping -h mysql --silent; do sleep 1; done'
-
-      - name: 📦 Validate Prisma Schema and Apply Migrations
-        # Esto valida la conexión, aplica migraciones y genera el cliente Prisma
-        run: npx prisma migrate deploy
-
-      # --- CHEQUEOS DE CÓDIGO Y PRUEBAS ---
-
-      - name: 📝 Run Lint (ESLint)
+      - name: Run Lint (ESLint)
         run: npm run lint
 
-      - name: 🏗️ Type Check and Build (TypeScript)
+      - name: Type Check and Build (TypeScript)
         run: npm run build
 
-      - name: 🧪 Run Tests with Coverage
-        # Las pruebas que dependen de la DB migrada se ejecutan aquí
+      - name: Set DATABASE_URL
+        run: echo "DATABASE_URL=mysql://user:password@mysql:3306/testpilotdb" >> $GITHUB_ENV
+
+      - name: Wait for MySQL Service to be fully ready (Fixed Delay)
+        run: sleep 30s
+        
+      - name: Validate Prisma Schema and Apply Migrations
+        run: npx prisma migrate deploy
+
+      - name: Run Tests with Coverage
         run: npm run test:coverage
