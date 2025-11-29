@@ -30,11 +30,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      # ... (Pasos de Setup Node y Install) ...
-
-      # Generar Prisma antes de compilar
+      # Prisma tiene una versión 7 pero no es compatible
       - name: Generate Prisma Client
-        run: npx prisma generate
+        run: npx prisma@6.19.0 generate
 
       - name: Run Lint (ESLint)
         run: npm run lint
@@ -42,7 +40,6 @@ jobs:
       - name: Type Check and Build (TypeScript)
         run: npm run build
 
-      # ... (Conexión, Espera y Migración) ...
       - name: Set DATABASE_URL
         run: echo "DATABASE_URL=mysql://user:password@mysql:3306/testpilotdb" >> $GITHUB_ENV
 

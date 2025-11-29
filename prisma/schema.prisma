@@ -1,7 +1,7 @@
 // Configuración para MySQL
 datasource db {
   provider = "mysql"
-  url      = env("DATABASE_URL")
+  url = env("DATABASE_URL")
 }
 
 // Generador para el cliente de Prisma con TypeScript
