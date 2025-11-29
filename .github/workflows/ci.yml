@@ -29,15 +29,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      
+      # ... (Pasos de Setup Node y Install) ...
 
-      - name: Setup Node.js 20.x
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm install
+      # Generar Prisma antes de compilar
+      - name: Generate Prisma Client
+        run: npx prisma generate
 
       - name: Run Lint (ESLint)
         run: npm run lint
@@ -45,6 +42,7 @@ jobs:
       - name: Type Check and Build (TypeScript)
         run: npm run build
 
+      # ... (Conexión, Espera y Migración) ...
       - name: Set DATABASE_URL
         run: echo "DATABASE_URL=mysql://user:password@mysql:3306/testpilotdb" >> $GITHUB_ENV
 
