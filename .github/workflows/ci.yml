@@ -29,6 +29,13 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4 
+        with:
+          node-version: '20'
+      - name: Verificar versión de Node.js
+        run: node -v
       
       # Prisma tiene una versión 7 pero no es compatible
       - name: Generate Prisma Client
@@ -42,12 +49,28 @@ jobs:
 
       - name: Set DATABASE_URL
         run: echo "DATABASE_URL=mysql://user:password@mysql:3306/testpilotdb" >> $GITHUB_ENV
-
-      - name: Wait for MySQL Service to be fully ready (Fixed Delay)
-        run: sleep 60s
         
-      - name: Validate Prisma Schema and Apply Migrations
-        run: npx prisma migrate deploy
+      - name: 🚀 Validate and Apply Migrations (with Retries)
+        run: |
+          MAX_RETRIES=10
+          RETRY_DELAY=5
+          
+          # Bucle de reintento para el comando de migración
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Attempt $i/$MAX_RETRIES: Running Prisma migrate deploy..."
+            
+            # Intentar la migración. Si es exitosa (código 0), salimos del bucle.
+            if npx prisma migrate deploy; then
+              echo "Prisma migration succeeded!"
+              exit 0
+            fi
+            
+            echo "Migration failed (P1001 expected). Waiting $RETRY_DELAY seconds before retry..."
+            sleep $RETRY_DELAY
+          done
+          
+          echo "Error: Database migration failed after $MAX_RETRIES retries."
+          exit 1 # Falla el job si los 10 intentos fallan
 
       - name: Run Tests with Coverage
         run: npm run test:coverage
