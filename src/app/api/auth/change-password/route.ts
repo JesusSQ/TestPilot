@@ -14,8 +14,11 @@ export async function POST(request: Request) {
     }
 
     const user = await prisma.user.findUnique({ where: { email } });
+    const correctCurrentPassword = user
+      ? await bcrypt.compare(currentPassword, user.password)
+      : false;
 
-    if (!user || user.password !== currentPassword) {
+    if (!correctCurrentPassword) {
       return NextResponse.json(
         { message: "Invalid email or current password" },
         { status: 401 }
