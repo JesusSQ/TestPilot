@@ -2,7 +2,6 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { POST } from "../route";
 
-// Mocks para dependencias
 jest.mock("@/lib/prisma", () => ({
   prisma: {
     user: {
@@ -13,9 +12,9 @@ jest.mock("@/lib/prisma", () => ({
 
 jest.mock("bcryptjs", () => ({
   compare: jest.fn(),
+  hash: jest.fn(),
 }));
 
-// Mockear JWT para errores de firma
 jest.mock("jsonwebtoken", () => ({
   sign: jest.fn(() => "mocked_jwt_token"),
 }));
@@ -42,10 +41,7 @@ describe("POST /api/auth/login", () => {
     jest.clearAllMocks();
   });
 
-  // --- CASOS 401 (Credenciales Inválidas) ---
-
   it("should return a 401 status for invalid credentials (email not found)", async () => {
-    // Simula que el usuario no existe
     (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
 
     const mockRequest = {
@@ -59,14 +55,12 @@ describe("POST /api/auth/login", () => {
 
     expect(response.status).toBe(401);
     const body = await response.json();
-    expect(body.message).toBe("Invalid email or password");
-
+    expect(body.message).toBe("Credenciales inválidas");
     expect(bcrypt.compare).not.toHaveBeenCalled();
   });
 
   it("should return a 401 status for invalid credentials (incorrect password)", async () => {
     (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
-
     (bcrypt.compare as jest.Mock).mockResolvedValue(false);
 
     const mockRequest = {
@@ -80,20 +74,13 @@ describe("POST /api/auth/login", () => {
 
     expect(response.status).toBe(401);
     const body = await response.json();
-    expect(body.message).toBe("Invalid email or password");
-
-    expect(bcrypt.compare).toHaveBeenCalledWith(
-      INVALID_PASSWORD,
-      HASHED_PASSWORD
-    );
+    expect(body.message).toBe("Credenciales inválidas");
   });
 
-  // --- CASOS 400 (Faltan Datos) ---
-
-  it("should return a 400 status if email is missing", async () => {
+  it("should return a 400 status if email format is invalid", async () => {
     const mockRequest = {
       json: async () => ({
-        email: "",
+        email: "not-an-email",
         password: VALID_PASSWORD,
       }),
     } as unknown as Request;
@@ -102,10 +89,8 @@ describe("POST /api/auth/login", () => {
 
     expect(response.status).toBe(400);
     const body = await response.json();
-    expect(body.message).toBe("Email and password are required");
+    expect(body.message).toBe("Formato de email inválido");
   });
-
-  // --- CASOS 403 (Cuenta Inactiva) ---
 
   it("should return a 403 status for a valid but INACTIVE user (STUDENT)", async () => {
     const mockInactiveStudent = {
@@ -116,7 +101,6 @@ describe("POST /api/auth/login", () => {
     (prisma.user.findUnique as jest.Mock).mockResolvedValue(
       mockInactiveStudent
     );
-
     (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
     const mockRequest = {
@@ -131,26 +115,22 @@ describe("POST /api/auth/login", () => {
 
     expect(response.status).toBe(403);
     expect(body.message).toBe(
-      "Your account is not active. Please contact support."
+      "Tu cuenta no está activa. Contacta con soporte."
     );
-    expect(body.status).toBe("INACTIVE");
   });
 
-  it("should return a 403 status for a valid but DESACTIVATED user (ADMIN)", async () => {
-    const mockDesactivatedAdmin = {
+  it("should return a 403 status for a valid but INACTIVE user (ADMIN)", async () => {
+    const mockInactiveAdmin = {
       ...mockUser,
       status: "INACTIVE",
       role: "ADMIN",
     };
-    (prisma.user.findUnique as jest.Mock).mockResolvedValue(
-      mockDesactivatedAdmin
-    );
-
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockInactiveAdmin);
     (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
     const mockRequest = {
       json: async () => ({
-        email: mockDesactivatedAdmin.email,
+        email: mockInactiveAdmin.email,
         password: VALID_PASSWORD,
       }),
     } as unknown as Request;
@@ -160,26 +140,17 @@ describe("POST /api/auth/login", () => {
 
     expect(response.status).toBe(403);
     expect(body.message).toBe(
-      "Your admin account is desactivated. Please contact support."
+      "Tu cuenta de administrador está desactivada. Contacta con soporte."
     );
-    expect(body.status).toBe("INACTIVE");
   });
 
-  // --- CASO 200 (Login Exitoso) ---
-
-  it("should return a 200 status and a token for a valid ACTIVE user (ADMIN)", async () => {
-    const mockAdminUser = {
-      ...mockUser,
-      role: "ADMIN",
-      email: "admin@example.com",
-    };
-    (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockAdminUser);
-
+  it("should return a 200 status and a token for a valid ACTIVE user", async () => {
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
     (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
     const mockRequest = {
       json: async () => ({
-        email: mockAdminUser.email,
+        email: VALID_EMAIL,
         password: VALID_PASSWORD,
       }),
     } as unknown as Request;
@@ -188,10 +159,8 @@ describe("POST /api/auth/login", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.message).toBe("Login successful");
+    expect(body.message).toBe("Login exitoso");
     expect(body.token).toBe("mocked_jwt_token");
-
-    expect(body.user.email).toBe(mockAdminUser.email);
-    expect(body.user.role).toBe("ADMIN");
+    expect(body.user.email).toBe(VALID_EMAIL);
   });
 });

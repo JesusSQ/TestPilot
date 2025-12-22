@@ -18,3 +18,10 @@ export const changePasswordSchema = z
     message: "Las contraseñas no coinciden",
     path: ["confirmNewPassword"],
   });
+
+export const loginSchema = z.object({
+  email: z
+    .email({ message: "Formato de email inválido" })
+    .min(1, { message: "El email es obligatorio" }),
+  password: z.string().min(1, { message: "La contraseña es obligatoria" }),
+});
