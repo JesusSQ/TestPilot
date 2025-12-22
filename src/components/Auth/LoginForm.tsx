@@ -42,7 +42,11 @@ const LoginForm: React.FC = () => {
                 localStorage.setItem('auth_token', data.token);
 
                 if (data.user.role === 'ADMIN') {
-                    router.push('/admin/inicio');
+                    if (data.user.mustChangePassword) {
+                        router.push('/admin/cambiar-contrasena');
+                    } else {
+                        router.push('/admin/inicio');
+                    }
                 } else if (data.user.role === 'STUDENT') {
                     router.push('/estudiante/inicio')
                 }

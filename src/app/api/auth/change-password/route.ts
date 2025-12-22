@@ -1,60 +1,80 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET || "a_clave_secreta";
 
 export async function POST(request: Request) {
   try {
-    const { email, currentPassword, newPassword } = await request.json();
+    const authHeader = request.headers.get("authorization");
+    const token = authHeader?.split(" ")[1];
 
-    if (!email || !currentPassword || !newPassword) {
+    if (!token) {
+      return NextResponse.json({ message: "No autorizado" }, { status: 401 });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET) as {
+      email: string;
+      id: string;
+    };
+    const userEmail = decoded.email;
+
+    const { currentPassword, newPassword } = await request.json();
+
+    if (!currentPassword || !newPassword) {
       return NextResponse.json(
-        { message: "Email, current password and new password are required" },
+        { message: "Faltan datos obligatorios" },
         { status: 400 }
       );
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
-    const correctCurrentPassword = user
-      ? await bcrypt.compare(currentPassword, user.password)
-      : false;
+    const user = await prisma.user.findUnique({ where: { email: userEmail } });
 
-    if (!correctCurrentPassword) {
+    if (!user) {
       return NextResponse.json(
-        { message: "Invalid email or current password" },
+        { message: "Usuario no encontrado" },
+        { status: 404 }
+      );
+    }
+
+    const isCorrectPassword = await bcrypt.compare(
+      currentPassword,
+      user.password
+    );
+
+    if (!isCorrectPassword) {
+      return NextResponse.json(
+        { message: "La contraseña actual es incorrecta" },
         { status: 401 }
       );
     }
 
     if (currentPassword === newPassword) {
       return NextResponse.json(
-        { message: "New password must be different from current password" },
+        { message: "La nueva contraseña debe ser diferente" },
         { status: 400 }
       );
     }
 
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);
 
-    // Update mustChangePassword flag if it's set, if not just update the password
-    if (user.mustChangePassword) {
-      await prisma.user.update({
-        where: { email },
-        data: { password: hashedNewPassword, mustChangePassword: false },
-      });
-    } else {
-      await prisma.user.update({
-        where: { email },
-        data: { password: hashedNewPassword },
-      });
-    }
+    await prisma.user.update({
+      where: { email: userEmail },
+      data: {
+        password: hashedNewPassword,
+        mustChangePassword: false,
+      },
+    });
 
     return NextResponse.json(
-      { message: "Password changed successfully" },
+      { message: "Contraseña cambiada exitosamente" },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (err) {
     return NextResponse.json(
-      { message: "Internal server error" },
-      { status: 500 }
+      { message: "Sesión inválida o expirada" },
+      { status: 401 }
     );
   }
 }
