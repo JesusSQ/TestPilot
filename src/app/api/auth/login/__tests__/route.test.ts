@@ -1,6 +1,17 @@
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { POST } from "../route";
+import { cookies } from "next/headers";
+
+jest.mock("next/headers", () => {
+  const cookieStore = {
+    set: jest.fn(),
+    get: jest.fn(),
+  };
+  return {
+    cookies: jest.fn(async () => cookieStore),
+  };
+});
 
 jest.mock("@/lib/prisma", () => ({
   prisma: {
@@ -37,7 +48,7 @@ describe("POST /api/auth/login", () => {
     mustChangePassword: false,
   };
 
-  afterEach(() => {
+  beforeEach(() => {
     jest.clearAllMocks();
   });
 
@@ -144,7 +155,7 @@ describe("POST /api/auth/login", () => {
     );
   });
 
-  it("should return a 200 status and a token for a valid ACTIVE user", async () => {
+  it("should return a 200 status and set a cookie for a valid ACTIVE user", async () => {
     (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
     (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
@@ -160,7 +171,12 @@ describe("POST /api/auth/login", () => {
 
     expect(response.status).toBe(200);
     expect(body.message).toBe("Login exitoso");
-    expect(body.token).toBe("mocked_jwt_token");
-    expect(body.user.email).toBe(VALID_EMAIL);
+
+    const cookieStore = await cookies();
+    expect(cookieStore.set).toHaveBeenCalledWith(
+      "auth_token",
+      "mocked_jwt_token",
+      expect.any(Object)
+    );
   });
 });

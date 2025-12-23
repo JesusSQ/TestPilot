@@ -31,12 +31,12 @@ const ChangePasswordPage = () => {
             const response = await fetch('/api/auth/change-password', {
                 method: 'POST',
                 headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     currentPassword: formData.currentPassword,
-                    newPassword: formData.newPassword
+                    newPassword: formData.newPassword,
+                    confirmNewPassword: formData.confirmNewPassword
                 }),
             });
 
@@ -44,6 +44,7 @@ const ChangePasswordPage = () => {
 
             if (response.ok) {
                 setStatus({ message: 'Contraseña actualizada. Redirigiendo...', isError: false });
+                router.refresh(); 
                 setTimeout(() => router.push('/admin/inicio'), 2000);
             } else {
                 setStatus({ message: data.message || 'Error al cambiar contraseña', isError: true });

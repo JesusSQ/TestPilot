@@ -1,6 +1,7 @@
+"use client";
+
 import { useRouter } from "next/navigation";
-import React from "react";
-import { useState } from "react";
+import React, { useState } from "react";
 
 interface UserData {
     id: number;
@@ -12,7 +13,6 @@ interface UserData {
 
 interface LoginResponse {
     message: string;
-    token: string;
     user: UserData;
 }
 
@@ -33,13 +33,13 @@ const LoginForm: React.FC = () => {
             const response = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json'},
-                body:JSON.stringify({ email, password })
-            })
+                body: JSON.stringify({ email, password })
+            });
 
             const data: LoginResponse = await response.json();
 
-            if (response.ok) {
-                localStorage.setItem('auth_token', data.token);
+            if (response.ok) {                
+                router.refresh();
 
                 if (data.user.role === 'ADMIN') {
                     if (data.user.mustChangePassword) {
@@ -48,14 +48,14 @@ const LoginForm: React.FC = () => {
                         router.push('/admin/inicio');
                     }
                 } else if (data.user.role === 'STUDENT') {
-                    router.push('/estudiante/inicio')
+                    router.push('/estudiante/inicio');
                 }
             } else {
-                setError(data.message || 'Login failed. Please check your credentials.')
+                setError(data.message || 'Login failed.');
             }
 
         } catch (e) {
-            setError('A network error ocurred. Check your connection.')
+            setError('A network error occurred.');
         } finally {
             setLoading(false);
         }
@@ -63,7 +63,6 @@ const LoginForm: React.FC = () => {
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
-            
             {error && (
                 <p className="p-3 text-sm text-red-700 bg-red-100 rounded-lg border border-red-200">
                     {error}
@@ -108,20 +107,13 @@ const LoginForm: React.FC = () => {
                         className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-full shadow-sm focus:outline-none focus:ring-yellow-700 focus:border-yellow-700 transition duration-150 ease-in-out placeholder-gray-500 text-gray-800"
                     />
                 </div>
-                <div className="mt-2 text-right">
-                    <a href="#" className="text-sm font-medium text-yellow-700 hover:text-yellow-800 transition duration-150 ease-in-out">
-                        ¿Olvidaste la contraseña?
-                    </a>
-                </div>
             </div>
 
             <button 
                 type="submit" 
                 disabled={loading}
                 className={`w-full py-2 px-4 rounded-full font-semibold text-white transition duration-200 ease-in-out ${
-                    loading 
-                    ? 'bg-yellow-400 cursor-not-allowed' 
-                    : 'bg-yellow-700 hover:bg-yellow-800 shadow-md'
+                    loading ? 'bg-yellow-400 cursor-not-allowed' : 'bg-yellow-700 hover:bg-yellow-800 shadow-md'
                 }`}
             >
                 {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
@@ -130,4 +122,4 @@ const LoginForm: React.FC = () => {
     );
 };
 
-export default LoginForm;  
+export default LoginForm;
