@@ -6,15 +6,11 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = { firstName: "John", role: "Estudiante" };
-
   return (
     <div className="flex min-h-screen bg-white">
       <Sidebar />
-
       <div className="flex-1 flex flex-col">
-        <DashboardHeader user={user} />
-        
+        <DashboardHeader />
         <main className="p-8">
           {children}
         </main>
